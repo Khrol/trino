@@ -75,7 +75,8 @@ final class TestOpaAccessControlFiltering
                             "resource": {
                                 "user": {
                                     "user": "user-one",
-                                    "groups": []
+                                    "groups": [],
+                                    "clientTags": []
                                 }
                             }
                         }
@@ -87,7 +88,8 @@ final class TestOpaAccessControlFiltering
                             "resource": {
                                 "user": {
                                     "user": "user-two",
-                                    "groups": []
+                                    "groups": [],
+                                    "clientTags": []
                                 }
                             }
                         }

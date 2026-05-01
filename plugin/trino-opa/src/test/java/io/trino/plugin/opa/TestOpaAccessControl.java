@@ -236,7 +236,8 @@ final class TestOpaAccessControl
                     "resource": {
                         "user": {
                             "user": "dummy-user",
-                            "groups": ["some-group"]
+                            "groups": ["some-group"],
+                            "clientTags": []
                         }
                     }
                 }
@@ -680,7 +681,8 @@ final class TestOpaAccessControl
                     "context": {
                         "identity": {
                             "user": "test_user",
-                            "groups": ["some_group"]
+                            "groups": ["some_group"],
+                            "clientTags": []
                         },
                         "softwareStack": {
                             "trinoVersion": "%s"
@@ -715,7 +717,8 @@ final class TestOpaAccessControl
                     "context": {
                         "identity": {
                             "user": "test_user",
-                            "groups": ["some_group"]
+                            "groups": ["some_group"],
+                            "clientTags": []
                         },
                         "softwareStack": {
                             "trinoVersion": "UNKNOWN"
@@ -1046,6 +1049,29 @@ final class TestOpaAccessControl
 
         assertThat(wrappedMethod.isAccessAllowed(authorizer)).isTrue();
         assertStringRequestsEqual(ImmutableSet.of(expectedActionRequest), mockClient.getRequests(), "/input/action");
+    }
+
+    @Test
+    public void testSourceAndClientTagsPropagation()
+    {
+        Identity identityWithCredentials = Identity.forUser("source-user")
+                .withGroups(ImmutableSet.of("some-group"))
+                .withAdditionalExtraCredentials(ImmutableMap.of("source", "ai-service", "clientTags", "ai,reporting"))
+                .build();
+
+        InstrumentedHttpClient mockClient = createMockHttpClient(OPA_SERVER_URI, request -> {
+            JsonNode identityNode = request.path("input").path("context").path("identity");
+
+            assertThat(identityNode.path("source").asText()).isEqualTo("ai-service");
+            ImmutableSet.Builder<String> clientTagsBuilder = ImmutableSet.builder();
+            identityNode.path("clientTags").forEach(tag -> clientTagsBuilder.add(tag.asText()));
+            assertThat(clientTagsBuilder.build()).containsExactlyInAnyOrder("ai", "reporting");
+
+            return OK_RESPONSE;
+        });
+
+        OpaAccessControl authorizer = createOpaAuthorizer(simpleOpaConfig(), mockClient);
+        authorizer.checkCanExecuteQuery(identityWithCredentials, TEST_QUERY_ID);
     }
 
     private void testGetColumnMasks(Map<ColumnSchema, String> columnResponseContent, Map<ColumnSchema, OpaViewExpression> expectedResult)

@@ -13,27 +13,38 @@
  */
 package io.trino.plugin.opa.schema;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.security.Identity;
 
+import java.util.Map;
 import java.util.Set;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import static java.util.Objects.requireNonNull;
 
+@JsonInclude(NON_NULL)
 public record TrinoIdentity(
         String user,
-        Set<String> groups)
+        Set<String> groups,
+        String source,
+        Set<String> clientTags)
 {
     public static TrinoIdentity fromTrinoIdentity(Identity identity)
     {
-        return new TrinoIdentity(
-                identity.getUser(),
-                identity.getGroups());
+        Map<String, String> extraCredentials = identity.getExtraCredentials();
+        String source = extraCredentials.get("source");
+        Set<String> clientTags = extraCredentials.containsKey("clientTags")
+                ? ImmutableSet.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(extraCredentials.get("clientTags")))
+                : ImmutableSet.of();
+        return new TrinoIdentity(identity.getUser(), identity.getGroups(), source, clientTags);
     }
 
     public TrinoIdentity
     {
         requireNonNull(user, "user is null");
         groups = ImmutableSet.copyOf(requireNonNull(groups, "groups is null"));
+        clientTags = ImmutableSet.copyOf(requireNonNull(clientTags, "clientTags is null"));
     }
 }
